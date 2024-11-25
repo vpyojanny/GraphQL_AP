@@ -12,7 +12,7 @@ env:
   NODE_VERSION: 18
   GCP_PROJECT_ID: ci-cd-graphql
   GKE_CLUSTER: graphql-cluster1
-  GKE_ZONE: us-central1-a
+  GKE_ZONE: us-central1
   GCR_IMAGE: gcr.io/ci-cd-graphql/graphql-ap
 
 jobs:
