@@ -1,0 +1,72 @@
+name: CI/CD Pipeline for GraphQL NestJS Project
+
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+    branches:
+      - master
+
+env:
+  NODE_VERSION: 18
+  GCP_PROJECT_ID: ci-cd-graphql
+  GKE_CLUSTER: graphql-cluster1
+  GKE_ZONE: us-central1-a
+  GCR_IMAGE: gcr.io/ci-cd-graphql/graphql-ap
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      # Checkout the code
+      - name: Check out code
+        uses: actions/checkout@v2
+
+      # Set up Node.js environment
+      - name: Set up Node.js
+        uses: actions/setup-node@v2
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      # Install dependencies
+      - name: Install dependencies
+        run: npm ci
+
+      # Run tests
+      - name: Run tests
+        run: npm test
+
+      # Build the project
+      - name: Build project
+        run: npm run build
+
+      # Authenticate with Google Cloud
+      - name: Authenticate with GCP
+        uses: google-github-actions/auth@v1
+        with:
+          credentials_json: ${{ secrets.GCP_CREDENTIALS }}
+
+      # Configure gcloud
+      - name: Configure gcloud
+        run: |
+          gcloud config set project ${{ env.GCP_PROJECT_ID }}
+          gcloud config set compute/zone ${{ env.GKE_ZONE }}
+          gcloud container clusters get-credentials ${{ env.GKE_CLUSTER }}
+
+      # Build Docker image
+      - name: Build Docker image
+        run: docker build -t ${{ env.GCR_IMAGE }}:latest .
+
+      # Push Docker image to GCR
+      - name: Push Docker image to GCR
+        run: docker push ${{ env.GCR_IMAGE }}:latest
+
+      # Deploy to GKE
+      - name: Deploy to GKE
+        run: |
+          kubectl set image deployment/${{ env.K8S_DEPLOYMENT }} \
+          app=${{ env.GCR_IMAGE }}:latest \
+          --namespace=${{ env.K8S_NAMESPACE }}
+          kubectl rollout status deployment/${{ env.K8S_DEPLOYMENT }} --namespace=${{ env.K8S_NAMESPACE }}
